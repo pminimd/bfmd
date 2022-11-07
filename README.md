@@ -547,6 +547,22 @@ class ShuffleUnit(nn.Module):
 
 ### Inception系列
 
+- [Inceptionv1](#incepv1)
+- [Inceptionv2](#incepv2)
+- [Inceptionv3](#incepv3)
+- [xception](#xception)
+
+Inception每代之间联系性比较强，Inception的目标是针对分类任务追求最高的精度，以至于后面几代开始“炼丹”，模型过于精细；v1和v2中的改进对深度学习的发展还是具有非常大的意义的。
+
+Xception设计的目的与Inception不同：Xception的目标是设计出易迁移、计算量小、能适应不同任务，且精度较高的模型
+
+- GoogLeNet（Inception-v1）：相比AlexNet和VGG，出现了多支路，引入了1×1卷积帮助减少网络计算量
+- Inception-v2：引入Batch Normalization(BN)；5×5卷积使用两个3×3卷积代替
+- Inception-v3：n×n卷积分割为1×n和n×1两个卷积
+- Inception-v4：进一步优化，引入ResNet的shortcut思想
+
+<a name="incepv1"></a>
+
 #### Inceptionv1: Going Deeper with Convolutions (GoogleNet)   
 - [Going deeper with convolutions](https://arxiv.org/abs/1409.4842)**CVPR2014**
 
@@ -609,6 +625,10 @@ class Inception(nn.Module):
 ```
 期间BN被提出Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift
 
+<a name="incepv2"></a>
+
+<a name="incepv3"></a>
+
 #### Inception-V2, Inception-V3: 
 
 [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567)**CVPR2016**
@@ -659,64 +679,63 @@ class Mixed_7a(nn.Module):
 
 ##### Inception v3: 
 
-Inception Net v3 整合了前面 Inception v2 的特点，除此之外，还包括以下5点改进：
+和inceptionv2大同小异，感觉有点炼丹，直接看源码就好inception_v3.py
 
-1. 不再直接使用max pooling层进行下采样，作者设计了另外一种方案，即两个并行的分支，一个是pooling层，另外一个卷积层，最后将两者结果concat在一起。这样在使用较小的计算量情形下还可以避免瓶颈层，ShuffleNet中也采用了这种策略。
-
-2. 使用RMSProp 优化器；
-3. Factorized 7x7 卷积；
-4. 辅助分类器使用了 BatchNorm；
-5. 使用了label smoothing；
-
-代码实现如下：
-
-```python
-
-```
-
-#### Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning
-[Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning](https://arxiv.org/abs/1602.07261)**CoRR2016**
-
-1. Inception v4 引入了一个新的stem模块，该模块放在Inception块之间执行。
-2. 基于新的stem和Inception 模块，Inception v4重新提出了三种新的Inception模块分别称为 A、B 和 C
-3. 引入了专用的「缩减块」（reduction block），它被用于改变网格的宽度和高度。
-
-```python
-
-```
+<a name="xception"></a>
 
 #### Xception: Deep Learning with Depthwise Separable Convolutions
 
 论文地址：[Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)**CVPR2017**
 
+![](./materials/xception_evolution1.png)![](./materials/xception_evolution2.png)![](./materials/xception_evolution3.png)![](./materials/xception_evolution4.png)
+
 基于Inception的模块，一个新的架构Xception应运而生。Xception取义自Extreme Inception，
 即Xception是一种极端的Inception.它的提出主要是为了解耦通道相关性和空间相关性。Xception主要通过提出深度可分离卷积则成功实现了将学习空间相关性和学习通道间相关性的任务完全分离，具体操作如下：
 
-1. 将Inception模块简化，仅保留包含3x3的卷积的分支：
-2. 将所有1x1的卷积进行拼接.
-3. 进一步增加3x3的卷积的分支的数量，使它与1x1的卷积的输出通道数相等：
+1. 从Figure1到Figure2，将Inception模块简化，仅保留包含3x3的卷积的分支：
+2. 从Figure2到Figure3，完全等价，将所有1x1的卷积进行拼接.
+3. 从Figure3到Figure4，进一步增加3x3的卷积的分支的数量，使它与1x1的卷积的输出通道数相等：
 4. 此时每个3x3的卷积即作用于仅包含一个通道的特征图上，作者称之为“极致的Inception（Extream Inception）”模块，这就是Xception的基本模块。事实上，调节每个3x3的卷积作用的特征图的通道数，
 即调节3x3的卷积的分支的数量与1x1的卷积的输出通道数的比例，可以实现一系列处于传统Inception模块和“极致的Inception”模块之间的状态。
+5. 最后一点：**Figure4并不是最终的xception Module**，需要再调换一下spatial conv和1x1 conv的顺序。
 
-代码实现如下：
+Xception Module代码实现如下：
 ```python
+class SeperableConv2d(nn.Module):
 
+    """
+    The order of the operations: depthwise separable convolutions as usually implemented (e.g. in TensorFlow)
+    perform first channel-wise spatial convolution and then perform 1x1 convolution, 
+    whereas Inception performs the 1x1 convolution first.
+    """
+    def __init__(self, input_channels, output_channels, kernel_size, **kwargs):
+
+        super().__init__()
+        self.depthwise = nn.Conv2d(
+            input_channels,
+            input_channels,
+            kernel_size,
+            groups=input_channels,
+            bias=False,
+            **kwargs
+        )
+
+        self.pointwise = nn.Conv2d(input_channels, output_channels, 1, bias=False)
+
+    def forward(self, x):       
+        x = self.depthwise(x)
+        x = self.pointwise(x)
+
+        return x
 ```
 
 ![](./materials/xception_architecture.png)
 
-#### Inception Convolution with Efficient Dilation Search（CVPR2021 oral）
+#### Inception Convolution with Efficient Dilation Search
 
 - 论文地址：https://arxiv.org/abs/2012.13587
 
 为了充分挖掘空洞卷积的潜力，本文主要结合一种基于统计优化的简单而高效(零成本)的空洞搜索算法（EDO，effective dilation search）提出了一种新的空洞卷积变体，即inception (dilated)卷积
 
-网络结构如下所示：
-
-
-
-代码实现如下：
-```python
-
-```
+感觉比较重要的是通过EDO在high level的语义中找到一个最佳的空洞卷积的组合，这个组合可以帮助获得optimal receptive field (ORF)
 
