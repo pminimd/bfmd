@@ -15,6 +15,10 @@ pip install bfmd
 
 ### [Inception系列](#inception)
 
+### [EfficientNet系列](#efficientnet)
+
+### [Blazeface的feature提取器](#blazenet)
+
 ### MobileNets系列
 本小节主要汇总了基于Google 提出来的适用于手机端的网络架构MobileNets的系列改进，针对每个网络架构，将主要总结每个不同模型的核心创新点，模型结构图以及代码实现.
    - [MobileNetV1](#mbv1)
@@ -738,4 +742,58 @@ class SeperableConv2d(nn.Module):
 为了充分挖掘空洞卷积的潜力，本文主要结合一种基于统计优化的简单而高效(零成本)的空洞搜索算法（EDO，effective dilation search）提出了一种新的空洞卷积变体，即inception (dilated)卷积
 
 感觉比较重要的是通过EDO在high level的语义中找到一个最佳的空洞卷积的组合，这个组合可以帮助获得optimal receptive field (ORF)
+
+<a name="blazenet"></a>
+
+### Blazeface的feature提取器
+
+- 论文地址：[BlazeFace: Sub-millisecond Neural Face Detection on Mobile GPUs](https://arxiv.org/abs/1907.05047)**CVPR2020**
+
+作者称：“本文的贡献包括受 MobileNetV1/V2 启发但又不同于 MobileNetV1/V2 的轻量级特征提取网络、从 Single Shot MultiBox Detector (SSD) 修改的 GPU 友好型锚方案，以及替代非最大抑制的改进的 tie resolution 策略。”，在此，我们来关注一下这个轻量级的特征提取网络。
+
+<img src="./materials/blazeblock.png" style="zoom: 80%;" /><img src="./materials/blazenet.png" style="zoom: 80%;" />
+
+128x128图片输入经过网络最终输出8x8x96的Feature空间
+
+code:
+
+```python
+class BlazeBlock(nn.Module):
+    def __init__(self, inp, oup, double_oup=None, stride=1, kernel_size=5):
+        super(BlazeBlock, self).__init__()
+        assert stride in [1, 2] 
+        self.stride = stride
+        self.inp = inp 
+        self.use_pooling = self.stride != 1
+        self.shortcut_oup = double_oup or oup
+        self.actvation = nn.ReLU(inplace=True)
+        
+        # double blaze block是double blaze_oup
+        if double_oup == None: 
+            self.conv = nn.Sequential( 
+                    conv_dw(inp, oup, stride, kernel_size)
+                )
+        else:
+            self.conv = nn.Sequential(
+                    conv_dw(inp, oup, stride, kernel_size),
+                    nn.ReLU(inplace=True),
+                    conv_pw(oup, double_oup, 1, kernel_size),
+                    nn.ReLU(inplace=True)
+                )
+        # stride为2的时候，shortcut才要加pooling操作
+        if self.use_pooling:
+            self.shortcut = nn.Sequential(
+                nn.MaxPool2d(kernel_size=stride, stride=stride),
+                nn.Conv2d(in_channels=inp, out_channels=self.shortcut_oup, kernel_size=1, stride=1),
+                nn.BatchNorm2d(self.shortcut_oup),
+                nn.ReLU(inplace=True)
+            ) 
+
+    def forward(self,x):
+        h = self.conv(x)
+        if self.use_pooling:
+            x = self.shortcut(x)
+        z = h + x
+        return self.actvation(h + x)
+```
 
