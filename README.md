@@ -743,6 +743,10 @@ class SeperableConv2d(nn.Module):
 
 感觉比较重要的是通过EDO在high level的语义中找到一个最佳的空洞卷积的组合，这个组合可以帮助获得optimal receptive field (ORF)
 
+<a name="efficientnet"></a>
+
+
+
 <a name="blazenet"></a>
 
 ### Blazeface的feature提取器
