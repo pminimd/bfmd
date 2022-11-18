@@ -11,7 +11,7 @@ import torch
 from torch import nn
 
 
-__all__ = ['MobileNeXt', 'mobilenext']
+__all__ = ['MobileNeXt']
 
 
 

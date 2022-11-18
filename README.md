@@ -1,7 +1,6 @@
 # bfmd: backbones for mobile device
 
-![](https://img.shields.io/badge/python->=v3.0-blue)
-![](https://img.shields.io/badge/pytorch->=v1.4-red)
+![](https://img.shields.io/badge/bfmd-v0.01-brightgreen)![](https://img.shields.io/badge/python->=v3.0-blue)![](https://img.shields.io/badge/pytorch->=v1.4-red)
 
 ### 安装
 ```python
